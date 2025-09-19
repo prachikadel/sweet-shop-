@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: sweet-shop-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: sweet-shop
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - sweet-shop-network
+
+  # Node.js API Server
+  api:
+    build: .
+    container_name: sweet-shop-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      MONGO_URI: mongodb://admin:password@mongodb:27017/sweet-shop?authSource=admin
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      JWT_EXPIRES_IN: 24h
+    depends_on:
+      - mongodb
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - sweet-shop-network
+    command: npm run dev:server
+
+  # React Frontend (if needed)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: sweet-shop-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:3001
+    depends_on:
+      - api
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - sweet-shop-network
+    command: npm run dev:client
+
+volumes:
+  mongodb_data:
+
+networks:
+  sweet-shop-network:
+    driver: bridge
+
